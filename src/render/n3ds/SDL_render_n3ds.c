@@ -105,6 +105,7 @@ typedef struct
 {
     SDL_BlendMode mode;
     SDL_Texture* texture;
+    
 } N3DS_BlendState;
 
 typedef struct
@@ -383,6 +384,34 @@ static bool
 N3DS_QueueNoOp(SDL_Renderer * renderer, SDL_RenderCommand *cmd)
 {
     return true;  /* nothing to do in this backend. */
+}
+
+static bool N3DS_QueueDrawPoints(SDL_Renderer *renderer, SDL_RenderCommand *cmd, const SDL_FPoint *points, int count)
+{
+    VertVCT *verts = (VertVCT *)SDL_AllocateRenderVertices(renderer, count * sizeof(VertVCT), 4, &cmd->data.draw.first);
+    int i;
+    
+    if (!verts) {
+        return false;
+    }
+    
+    SDL_Color col;
+    col.r = cmd->data.color.color.r;
+    col.g = cmd->data.color.color.g;
+    col.b = cmd->data.color.color.b;
+    col.a = cmd->data.color.color.a;
+    
+    cmd->data.draw.count = count;
+    
+    for (i = 0; i < count; i++, verts++, points++) {
+        verts->x = points->x;
+        verts->y = points->y;
+        verts->col = col;
+        verts->u = 0.0f;
+        verts->v = 0.0f;
+    }
+    
+    return true;
 }
 
 static bool
@@ -983,6 +1012,8 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
     renderer->SetRenderTarget = N3DS_SetRenderTarget;
     renderer->QueueSetViewport = N3DS_QueueNoOp;
     renderer->QueueSetDrawColor = N3DS_QueueNoOp;  /* SetViewport and SetDrawColor are (currently) no-ops. */
+    renderer->QueueDrawPoints = N3DS_QueueDrawPoints;
+    renderer->QueueDrawLines = N3DS_QueueDrawPoints;
     renderer->QueueGeometry = N3DS_QueueGeometry;
     renderer->QueueFillRects = N3DS_QueueFillRects;
     renderer->QueueCopy = N3DS_QueueCopy;
@@ -998,11 +1029,12 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
     //renderer->info.flags = (SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
     // renderer->internal = data;
     renderer->window = window;
-    renderer->point_method = SDL_RENDERPOINTMETHOD_GEOMETRY;
-    renderer->line_method = SDL_RENDERLINEMETHOD_GEOMETRY;
+    // renderer->point_method = SDL_RENDERPOINTMETHOD_GEOMETRY;
+    // renderer->line_method = SDL_RENDERLINEMETHOD_GEOMETRY;
 
     renderer->name = N3DS_RenderDriver.name;
     renderer->npot_texture_wrap_unsupported = true;
+    SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_ABGR8888);
     SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_RGBA8888);
     SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_RGBA5551);
     SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_RGB565);
@@ -1030,6 +1062,7 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
 
     SDL_GetWindowSizeInPixels(window, &width, &height);
     pixelFormat = PixelFormatToN3DSGPU(SDL_GetWindowPixelFormat(window));
+
     /* FIXME: We might need a more resilient way of detecting the window<->screen mapping in the future. */
     windowIsBottom = (width == 320);
 
@@ -1073,7 +1106,7 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
 
     ResetBlendState(data, &data->blendState);
 
-    return 0;
+    return true;
 }
 
 SDL_RenderDriver N3DS_RenderDriver = {
