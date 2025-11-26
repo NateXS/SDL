@@ -213,6 +213,12 @@ typedef struct SDL_VertexSolid
 
 typedef enum
 {
+    SDL_RENDERPOINTMETHOD_POINTS,
+    SDL_RENDERPOINTMETHOD_GEOMETRY,
+} SDL_RenderPointMethod;
+
+typedef enum
+{
     SDL_RENDERLINEMETHOD_POINTS,
     SDL_RENDERLINEMETHOD_LINES,
     SDL_RENDERLINEMETHOD_GEOMETRY,
@@ -303,6 +309,9 @@ struct SDL_Renderer
     // The window pixel to point coordinate scale
     SDL_FPoint dpi_scale;
 
+    /* The method of drawing points */
+    SDL_RenderPointMethod point_method;
+
     // The method of drawing lines
     SDL_RenderLineMethod line_method;
 
@@ -383,6 +392,7 @@ extern SDL_RenderDriver PS2_RenderDriver;
 extern SDL_RenderDriver PSP_RenderDriver;
 extern SDL_RenderDriver SW_RenderDriver;
 extern SDL_RenderDriver VITA_GXM_RenderDriver;
+extern SDL_RenderDriver N3DS_RenderDriver;
 extern SDL_RenderDriver GPU_RenderDriver;
 
 // Clean up any renderers at shutdown

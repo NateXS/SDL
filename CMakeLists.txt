@@ -3296,11 +3296,24 @@ elseif(N3DS)
 
   if(SDL_VIDEO)
     set(SDL_VIDEO_DRIVER_N3DS 1)
+    set(SDL_VIDEO_RENDER_N3DS 1)
     sdl_glob_sources(
       "${SDL3_SOURCE_DIR}/src/video/n3ds/*.c"
       "${SDL3_SOURCE_DIR}/src/video/n3ds/*.h"
     )
+    sdl_glob_sources(
+      "${SDL3_SOURCE_DIR}/src/render/n3ds/*.c"
+      "${SDL3_SOURCE_DIR}/src/render/n3ds/*.h"
+    )
+    sdl_glob_sources(
+      "${SDL3_SOURCE_DIR}/src/core/n3ds/*.c"
+      "${SDL3_SOURCE_DIR}/src/core/n3ds/*.h"
+    )
     set(HAVE_SDL_VIDEO TRUE)
+    set(SDL_VIDEO_OPENGL 0)
+    sdl_link_dependency(base
+    LIBS
+    citro3d)
   endif()
 
   sdl_glob_sources("${SDL3_SOURCE_DIR}/src/locale/n3ds/*.c")
