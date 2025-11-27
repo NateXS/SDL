@@ -203,11 +203,12 @@ N3DS_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_PropertiesI
     bool initialized = false;
 
     if (!N3DS_texture)
-        return false;
+        return SDL_OutOfMemory();
 
     N3DS_texture->width = texture->w;
     N3DS_texture->height = texture->h;
 
+    /* VRAM textures cannot be swizzled, so we rely on RAM textures only for now. */
 #if 0
     initialized = C3D_TexInitVRAM(&N3DS_texture->texture,
         TextureNextPow2(texture->w),
@@ -224,7 +225,7 @@ N3DS_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_PropertiesI
 
     if (!initialized) {
         SDL_free(N3DS_texture);
-        return false;
+        return SDL_OutOfMemory();
     }
 
     N3DS_texture->pitch = N3DS_texture->texture.width * SDL_BYTESPERPIXEL(texture->format);
@@ -241,7 +242,7 @@ N3DS_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_PropertiesI
         if (N3DS_texture->renderTarget == NULL) {
             C3D_TexDelete(&N3DS_texture->texture);
             SDL_free(N3DS_texture);
-            return false;
+            return SDL_OutOfMemory();
         }
 
         Mtx_Ortho(&N3DS_texture->renderProjMtx, 0.0, N3DS_texture->texture.width, 0.0, N3DS_texture->texture.height, -1.0, 1.0, true);
@@ -1033,10 +1034,9 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
     renderer->UpdateTexture = N3DS_UpdateTexture;
     renderer->LockTexture = N3DS_LockTexture;
     renderer->UnlockTexture = N3DS_UnlockTexture;
-    // renderer->SetTextureScaleMode = N3DS_SetTextureScaleMode;
     renderer->SetRenderTarget = N3DS_SetRenderTarget;
     renderer->QueueSetViewport = N3DS_QueueNoOp;
-    renderer->QueueSetDrawColor = N3DS_QueueNoOp;  /* SetViewport and SetDrawColor are (currently) no-ops. */
+    renderer->QueueSetDrawColor = N3DS_QueueNoOp;
     renderer->QueueDrawPoints = N3DS_QueueDrawPoints;
     renderer->QueueDrawLines = N3DS_QueueDrawPoints;
     renderer->QueueGeometry = N3DS_QueueGeometry;
@@ -1045,18 +1045,12 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
     renderer->QueueCopyEx = N3DS_QueueCopyEx;
     renderer->InvalidateCachedState = N3DS_InvalidateCachedState;
     renderer->RunCommandQueue = N3DS_RunCommandQueue;
-    // renderer->RenderReadPixels = N3DS_RenderReadPixels;
     renderer->RenderPresent = N3DS_RenderPresent;
     renderer->DestroyTexture = N3DS_DestroyTexture;
     renderer->DestroyRenderer = N3DS_DestroyRenderer;
     renderer->SetVSync = N3DS_SetVSync;
     renderer->internal = data;
-    //renderer->info = N3DS_RenderDriver.info;
-    //renderer->info.flags = (SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
-    // renderer->internal = data;
     renderer->window = window;
-    // renderer->point_method = SDL_RENDERPOINTMETHOD_GEOMETRY;
-    // renderer->line_method = SDL_RENDERLINEMETHOD_GEOMETRY;
 
     renderer->name = N3DS_RenderDriver.name;
     renderer->npot_texture_wrap_unsupported = true;
@@ -1065,14 +1059,7 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
     SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_RGB565);
     SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_RGBA4444);
     SDL_SetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 1024);
-
     data->initialized = true;
-
-    // if (flags & SDL_RENDERER_PRESENTVSYNC) {
-    //     data->vsync = true;
-    // } else {
-    //     data->vsync = false;
-    // }
 
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
 
