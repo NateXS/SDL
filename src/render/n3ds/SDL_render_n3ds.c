@@ -149,6 +149,16 @@ Swap(float *a, float *b)
     *b = n;
 }
 
+static inline SDL_Color FColorToColor(SDL_FColor fc)
+{
+    SDL_Color c;
+    c.r = (Uint8)(fc.r * 255.0f);
+    c.g = (Uint8)(fc.g * 255.0f);
+    c.b = (Uint8)(fc.b * 255.0f);
+    c.a = (Uint8)(fc.a * 255.0f);
+    return c;
+}
+
 static inline int
 InVram(void* data)
 {
@@ -395,11 +405,7 @@ static bool N3DS_QueueDrawPoints(SDL_Renderer *renderer, SDL_RenderCommand *cmd,
         return false;
     }
     
-    SDL_Color col;
-    col.r = cmd->data.color.color.r;
-    col.g = cmd->data.color.color.g;
-    col.b = cmd->data.color.color.b;
-    col.a = cmd->data.color.color.a;
+    SDL_Color col = FColorToColor(cmd->data.color.color);
     
     cmd->data.draw.count = count;
     
@@ -436,7 +442,7 @@ N3DS_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *
         for (i = 0; i < count; i++) {
             int j;
             float *xy_;
-            SDL_Color col_;
+            SDL_FColor col_;
             if (size_indices == 4) {
                 j = ((const Uint32 *)indices)[i];
             } else if (size_indices == 2) {
@@ -448,12 +454,12 @@ N3DS_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *
             }
 
             xy_ = (float *)((char*)xy + j * xy_stride);
-            col_ = *(SDL_Color *)((char*)color + j * color_stride);
+            col_ = *(SDL_FColor *)((char*)color + j * color_stride);
 
             verts->x = xy_[0] * scale_x;
             verts->y = xy_[1] * scale_y;
 
-            verts->col = col_;
+            verts->col = FColorToColor(col_);
 
             verts++;
         }
@@ -462,7 +468,7 @@ N3DS_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *
         for (i = 0; i < count; i++) {
             int j;
             float *xy_;
-            SDL_Color col_;
+            SDL_FColor col_;
             float *uv_;
 
             if (size_indices == 4) {
@@ -476,13 +482,13 @@ N3DS_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *
             }
 
             xy_ = (float *)((char*)xy + j * xy_stride);
-            col_ = *(SDL_Color *)((char*)color + j * color_stride);
+            col_ = *(SDL_FColor *)((char*)color + j * color_stride);
             uv_ = (float *)((char*)uv + j * uv_stride);
 
             verts->x = xy_[0] * scale_x;
             verts->y = xy_[1] * scale_y;
 
-            verts->col = col_;
+            verts->col = FColorToColor(col_);
 
             verts->u = uv_[0] * N3DS_texture->texture.width;
             verts->v = uv_[1] * N3DS_texture->texture.height;
@@ -497,7 +503,7 @@ N3DS_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *
 static bool
 N3DS_QueueFillRects(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL_FRect * rects, int count)
 {
-    SDL_Color color = *((SDL_Color*) &(cmd->data.draw.color));
+    SDL_Color color = FColorToColor(cmd->data.draw.color);
     VertVCT *verts = (VertVCT *) SDL_AllocateRenderVertices(renderer, count * 6 * sizeof (VertVCT), 0, &cmd->data.draw.first);
     int i;
 
@@ -548,7 +554,7 @@ N3DS_QueueCopy(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *text
 {
     N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
 
-    SDL_Color color = *((SDL_Color*) &(cmd->data.draw.color));
+    SDL_Color color = FColorToColor(cmd->data.draw.color);
     VertVCT *verts;
     const float x = dstrect->x;
     const float y = dstrect->y;
@@ -618,7 +624,7 @@ N3DS_QueueCopyEx(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *te
 {
     N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
 
-    SDL_Color color = *((SDL_Color*) &(cmd->data.draw.color));
+    SDL_Color color = FColorToColor(cmd->data.draw.color);
     VertVCT *verts = (VertVCT *) SDL_AllocateRenderVertices(renderer, 6 * sizeof (VertVCT), 0, &cmd->data.draw.first);
     const float centerx = center->x;
     const float centery = center->y;
@@ -782,6 +788,11 @@ N3DS_SetBlendState(N3DS_RenderData* data, N3DS_BlendState* state)
     *current = *state;
 }
 
+static void N3DS_InvalidateCachedState(SDL_Renderer *renderer)
+{
+    // currently this doesn't do anything. If this needs to do something (and someone is mixing their own rendering calls in!), update this.
+}
+
 static bool
 N3DS_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize)
 {
@@ -814,12 +825,26 @@ N3DS_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vert
             }
 
             case SDL_RENDERCMD_DRAW_POINTS: {
-                /* Output as geometry */
+                const size_t first = cmd->data.draw.first / sizeof(VertVCT);
+                const size_t count = cmd->data.draw.count;
+                N3DS_BlendState state = {
+                    .texture = NULL,
+                    .mode = cmd->data.draw.blend
+                };
+                N3DS_SetBlendState(data, &state);
+                C3D_DrawArrays(GPU_TRIANGLE_STRIP, first, count);
                 break;
             }
 
             case SDL_RENDERCMD_DRAW_LINES: {
-                /* Output as geometry */
+                const size_t first = cmd->data.draw.first / sizeof(VertVCT);
+                const size_t count = cmd->data.draw.count;
+                N3DS_BlendState state = {
+                    .texture = NULL,
+                    .mode = cmd->data.draw.blend
+                };
+                N3DS_SetBlendState(data, &state);
+                C3D_DrawArrays(GPU_TRIANGLE_STRIP, first, count);
                 break;
             }
 
@@ -1018,6 +1043,7 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
     renderer->QueueFillRects = N3DS_QueueFillRects;
     renderer->QueueCopy = N3DS_QueueCopy;
     renderer->QueueCopyEx = N3DS_QueueCopyEx;
+    renderer->InvalidateCachedState = N3DS_InvalidateCachedState;
     renderer->RunCommandQueue = N3DS_RunCommandQueue;
     // renderer->RenderReadPixels = N3DS_RenderReadPixels;
     renderer->RenderPresent = N3DS_RenderPresent;
@@ -1034,7 +1060,6 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
 
     renderer->name = N3DS_RenderDriver.name;
     renderer->npot_texture_wrap_unsupported = true;
-    SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_ABGR8888);
     SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_RGBA8888);
     SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_RGBA5551);
     SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_RGB565);
