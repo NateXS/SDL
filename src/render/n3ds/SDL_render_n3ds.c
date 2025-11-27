@@ -407,13 +407,19 @@ static bool N3DS_QueueDrawPoints(SDL_Renderer *renderer, SDL_RenderCommand *cmd,
     }
     
     SDL_Color col = FColorToColor(cmd->data.color.color);
+    SDL_Color colABGR = {
+        .r = col.a,
+        .g = col.b,
+        .b = col.g,
+        .a = col.r
+    };
     
     cmd->data.draw.count = count;
     
     for (i = 0; i < count; i++, verts++, points++) {
         verts->x = points->x;
         verts->y = points->y;
-        verts->col = col;
+        verts->col = colABGR;
         verts->u = 0.0f;
         verts->v = 0.0f;
     }
