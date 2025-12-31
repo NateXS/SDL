@@ -127,6 +127,12 @@ typedef struct
     DVLB_s *dvlb;
     shaderProgram_s shaderProgram;
     int projMtxShaderLoc;
+
+    /** Render target deletion queue */
+    C3D_RenderTarget **targetDeleteQueue;
+    int targetDeleteQueueCount;
+    int targetDeleteQueueCapacity;
+
 } N3DS_RenderData;
 
 typedef struct
@@ -208,13 +214,12 @@ N3DS_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_PropertiesI
     N3DS_texture->width = texture->w;
     N3DS_texture->height = texture->h;
 
-    /* VRAM textures cannot be swizzled, so we rely on RAM textures only for now. */
-#if 0
-    initialized = C3D_TexInitVRAM(&N3DS_texture->texture,
+    if(texture->access == SDL_TEXTUREACCESS_TARGET){
+        initialized = C3D_TexInitVRAM(&N3DS_texture->texture,
         TextureNextPow2(texture->w),
         TextureNextPow2(texture->h),
         PixelFormatToN3DSGPU(texture->format));
-#endif
+    }
 
     if (!initialized) {
         initialized = C3D_TexInit(&N3DS_texture->texture,
@@ -245,11 +250,13 @@ N3DS_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_PropertiesI
             return SDL_OutOfMemory();
         }
 
-        Mtx_Ortho(&N3DS_texture->renderProjMtx, 0.0, N3DS_texture->texture.width, 0.0, N3DS_texture->texture.height, -1.0, 1.0, true);
+        Mtx_Ortho(&N3DS_texture->renderProjMtx, 0.0,N3DS_texture->texture.width, N3DS_texture->texture.height,0.0,-1.0, 1.0, true);
+
+	    C3D_FrameSplit(0);
+	    C3D_RenderTargetClear(N3DS_texture->renderTarget, C3D_CLEAR_ALL, __builtin_bswap32(0), 0);
     } else if (texture->access == SDL_TEXTUREACCESS_STREAMING) {
         N3DS_texture->unswizzledBuffer = linearAlloc(N3DS_texture->unswizzledSize);
     }
-
     texture->internal = N3DS_texture;
 
     return true;
@@ -959,6 +966,11 @@ N3DS_RenderPresent(SDL_Renderer * renderer)
     C3D_FrameEnd(0);
     data->displayListAvail = false;
 
+    for (int i = 0; i < data->targetDeleteQueueCount; i++) {
+        C3D_RenderTargetDelete(data->targetDeleteQueue[i]);
+    }
+    data->targetDeleteQueueCount = 0;
+
     return true;
 }
 
@@ -975,7 +987,29 @@ N3DS_DestroyTexture(SDL_Renderer * renderer, SDL_Texture * texture)
         return;
 
     if (N3DS_texture->renderTarget != NULL) {
-        C3D_RenderTargetDelete(N3DS_texture->renderTarget);
+        if(!renderdata->displayListAvail)
+            C3D_RenderTargetDelete(N3DS_texture->renderTarget);
+        else {
+            /** Frame has not ended yet, we must queue the target to delete at the end of the frame. */
+            if (renderdata->targetDeleteQueueCount >= renderdata->targetDeleteQueueCapacity) {
+                int newCapacity = renderdata->targetDeleteQueueCapacity == 0 ? 4 : renderdata->targetDeleteQueueCapacity * 2;
+                C3D_RenderTarget **newArray = (C3D_RenderTarget **)SDL_realloc(
+                    renderdata->targetDeleteQueue,
+                    newCapacity * sizeof(C3D_RenderTarget *)
+                );
+                if (newArray == NULL) {
+                    C3D_FrameEnd(0);
+                    C3D_RenderTargetDelete(N3DS_texture->renderTarget);
+                    C3D_FrameBegin(C3D_FRAME_NONBLOCK);
+                } else {
+                    renderdata->targetDeleteQueue = newArray;
+                    renderdata->targetDeleteQueueCapacity = newCapacity;
+                    renderdata->targetDeleteQueue[renderdata->targetDeleteQueueCount++] = N3DS_texture->renderTarget;
+                }
+            } else {
+                renderdata->targetDeleteQueue[renderdata->targetDeleteQueueCount++] = N3DS_texture->renderTarget;
+            }
+        }
     }
 
     if (N3DS_texture->unswizzledBuffer != NULL) {
@@ -994,6 +1028,11 @@ N3DS_DestroyRenderer(SDL_Renderer * renderer)
     if (data) {
         if (!data->initialized)
             return;
+
+        for (int i = 0; i < data->targetDeleteQueueCount; i++) {
+            C3D_RenderTargetDelete(data->targetDeleteQueue[i]);
+        }
+        data->targetDeleteQueueCount = 0;
 
         C3D_RenderTargetDelete(data->renderTarget);
 
@@ -1090,7 +1129,7 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
     C3D_RenderTargetClear(data->renderTarget, C3D_CLEAR_ALL, 0, 0);
     C3D_RenderTargetSetOutput(data->renderTarget,
         windowIsBottom ? GFX_BOTTOM : GFX_TOP, GFX_LEFT,
-        GX_TRANSFER_IN_FORMAT(pixelFormat) | GX_TRANSFER_OUT_FORMAT(GPU_RB_RGBA8));
+        GX_TRANSFER_IN_FORMAT(pixelFormat) | GX_TRANSFER_OUT_FORMAT(pixelFormat));
     Mtx_OrthoTilt(&data->renderProjMtx, 0.0, width, height, 0.0, -1.0, 1.0, true);
 
     C3D_DepthTest(false, GPU_GEQUAL, GPU_WRITE_ALL);
