@@ -19,17 +19,17 @@
 
 #ifdef SDL_VIDEO_RENDER_N3DS
 
+#include "../SDL_sysrender.h"
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_pixels.h>
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_video.h>
-#include "../SDL_sysrender.h"
 
-#include <stdbool.h>
 #include <3ds.h>
 #include <citro3d.h>
+#include <stdbool.h>
 
 #include "SDL_render_n3ds_shaders.h"
 
@@ -41,16 +41,15 @@
  * - Fix GX Display Transfer usage for offloading texture swizzling to hardware
  */
 
-static u8 SwizzleLUT[64] =
-{
-  0x00, 0x01, 0x04, 0x05, 0x10, 0x11, 0x14, 0x15,
-  0x02, 0x03, 0x06, 0x07, 0x12, 0x13, 0x16, 0x17,
-  0x08, 0x09, 0x0c, 0x0d, 0x18, 0x19, 0x1c, 0x1d,
-  0x0a, 0x0b, 0x0e, 0x0f, 0x1a, 0x1b, 0x1e, 0x1f,
-  0x20, 0x21, 0x24, 0x25, 0x30, 0x31, 0x34, 0x35,
-  0x22, 0x23, 0x26, 0x27, 0x32, 0x33, 0x36, 0x37,
-  0x28, 0x29, 0x2c, 0x2d, 0x38, 0x39, 0x3c, 0x3d,
-  0x2a, 0x2b, 0x2e, 0x2f, 0x3a, 0x3b, 0x3e, 0x3f
+static u8 SwizzleLUT[64] = {
+    0x00, 0x01, 0x04, 0x05, 0x10, 0x11, 0x14, 0x15,
+    0x02, 0x03, 0x06, 0x07, 0x12, 0x13, 0x16, 0x17,
+    0x08, 0x09, 0x0c, 0x0d, 0x18, 0x19, 0x1c, 0x1d,
+    0x0a, 0x0b, 0x0e, 0x0f, 0x1a, 0x1b, 0x1e, 0x1f,
+    0x20, 0x21, 0x24, 0x25, 0x30, 0x31, 0x34, 0x35,
+    0x22, 0x23, 0x26, 0x27, 0x32, 0x33, 0x36, 0x37,
+    0x28, 0x29, 0x2c, 0x2d, 0x38, 0x39, 0x3c, 0x3d,
+    0x2a, 0x2b, 0x2e, 0x2f, 0x3a, 0x3b, 0x3e, 0x3f
 };
 
 static int
@@ -72,17 +71,17 @@ PixelFormatToN3DSGPU(Uint32 format)
     }
 }
 
-#define COL8888(r,g,b,a)    ((a) | ((b)<<8) | ((g)<<16) | ((r)<<24))
+#define COL8888(r, g, b, a) ((a) | ((b) << 8) | ((g) << 16) | ((r) << 24))
 
 typedef struct
 {
-    C3D_Tex             texture;
-    C3D_RenderTarget*   renderTarget;
-    C3D_Mtx             renderProjMtx;
-    unsigned int        width;                              /**< Image width. */
-    unsigned int        height;                             /**< Image height. */
-    unsigned int        pitch;
-    unsigned int        size;
+    C3D_Tex texture;
+    C3D_RenderTarget *renderTarget;
+    C3D_Mtx renderProjMtx;
+    unsigned int width;  /**< Image width. */
+    unsigned int height; /**< Image height. */
+    unsigned int pitch;
+    unsigned int size;
     /**
      * The 3DS GPU requires all textures to be *swizzled* before use.
      *
@@ -95,37 +94,37 @@ typedef struct
      * to a multiple of 8, as opposed to the next power of two. The 3DS GPU can
      * deal with that.
      */
-    void*               unswizzledBuffer;
-    unsigned int        unswizzledWidth;
-    unsigned int        unswizzledHeight;
-    unsigned int        unswizzledPitch;
-    unsigned int        unswizzledSize;
+    void *unswizzledBuffer;
+    unsigned int unswizzledWidth;
+    unsigned int unswizzledHeight;
+    unsigned int unswizzledPitch;
+    unsigned int unswizzledSize;
 } N3DS_TextureData;
 
 typedef struct
 {
     SDL_BlendMode mode;
-    SDL_Texture* texture;
-    
+    SDL_Texture *texture;
+
 } N3DS_BlendState;
 
 typedef struct
 {
-    C3D_RenderTarget*   renderTarget;
-    C3D_Mtx             renderProjMtx;
-    SDL_Texture*        boundTarget;                         /**< currently bound rendertarget */
-    bool            initialized;                         /**< is driver initialized */
-    bool            displayListAvail;                    /**< is the display list already initialized for this frame */
-    unsigned int        psm;                                 /**< format of the display buffers */
-    unsigned int        bpp;                                 /**< bits per pixel of the main display */
+    C3D_RenderTarget *renderTarget;
+    C3D_Mtx renderProjMtx;
+    SDL_Texture *boundTarget; /**< currently bound rendertarget */
+    bool initialized;         /**< is driver initialized */
+    bool displayListAvail;    /**< is the display list already initialized for this frame */
+    unsigned int psm;         /**< format of the display buffers */
+    unsigned int bpp;         /**< bits per pixel of the main display */
 
-    bool            vsync;                               /**< wether we do vsync */
-    N3DS_BlendState     blendState;                          /**< current blend mode */
+    bool vsync;                 /**< wether we do vsync */
+    N3DS_BlendState blendState; /**< current blend mode */
 
-    C3D_TexEnv          envTex;
-    C3D_TexEnv          envNoTex;
+    C3D_TexEnv envTex;
+    C3D_TexEnv envNoTex;
 
-    SDL_Rect    viewport;
+    SDL_Rect viewport;
 
     DVLB_s *dvlb;
     shaderProgram_s shaderProgram;
@@ -140,20 +139,19 @@ typedef struct
 
 typedef struct
 {
-    float     x, y;
+    float x, y;
     SDL_Color col;
-    float     u, v;
+    float u, v;
 } VertVCT;
 
-#define PI   3.14159265358979f
+#define PI 3.14159265358979f
 
-#define radToDeg(x) ((x)*180.f / SDL_PI_F)
-#define degToRad(x) ((x)*SDL_PI_F / 180.f)
+#define radToDeg(x) ((x) * 180.f / SDL_PI_F)
+#define degToRad(x) ((x) * SDL_PI_F / 180.f)
 
-static inline void
-Swap(float *a, float *b)
+static inline void Swap(float *a, float *b)
 {
-    float n=*a;
+    float n = *a;
     *a = *b;
     *b = n;
 }
@@ -168,14 +166,12 @@ static inline SDL_Color FColorToColor(SDL_FColor fc)
     return c;
 }
 
-static inline int
-InVram(void* data)
+static inline int InVram(void *data)
 {
-    return data < (void*)0x20000000;
+    return data < (void *)0x20000000;
 }
 
-static int
-TextureNextPow2(unsigned int w)
+static int TextureNextPow2(unsigned int w)
 {
     if (w < 8)
         return 8;
@@ -188,27 +184,24 @@ TextureNextPow2(unsigned int w)
     return w + 1;
 }
 
-static int
-TextureAlign8(unsigned int w) {
+static int TextureAlign8(unsigned int w)
+{
     return (w + 7) & (~7);
 }
 
-static void
-TextureActivate(SDL_Texture *texture)
+static void TextureActivate(SDL_Texture *texture)
 {
-    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
+    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *)texture->internal;
     C3D_TexBind(0, &N3DS_texture->texture);
 }
 
-static void
-N3DS_WindowEvent(SDL_Renderer * renderer, const SDL_WindowEvent *event)
+static void N3DS_WindowEvent(SDL_Renderer *renderer, const SDL_WindowEvent *event)
 {
 }
 
-static bool
-N3DS_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_PropertiesID create_props)
+static bool N3DS_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_PropertiesID create_props)
 {
-    N3DS_TextureData* N3DS_texture = (N3DS_TextureData*) SDL_calloc(1, sizeof(*N3DS_texture));
+    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *)SDL_calloc(1, sizeof(*N3DS_texture));
     bool initialized = false;
 
     if (!N3DS_texture)
@@ -217,18 +210,18 @@ N3DS_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_PropertiesI
     N3DS_texture->width = texture->w;
     N3DS_texture->height = texture->h;
 
-    if(texture->access == SDL_TEXTUREACCESS_TARGET){
+    if (texture->access == SDL_TEXTUREACCESS_TARGET) {
         initialized = C3D_TexInitVRAM(&N3DS_texture->texture,
-        TextureNextPow2(texture->w),
-        TextureNextPow2(texture->h),
-        PixelFormatToN3DSGPU(texture->format));
+                                      TextureNextPow2(texture->w),
+                                      TextureNextPow2(texture->h),
+                                      PixelFormatToN3DSGPU(texture->format));
     }
 
     if (!initialized) {
         initialized = C3D_TexInit(&N3DS_texture->texture,
-            TextureNextPow2(texture->w),
-            TextureNextPow2(texture->h),
-            PixelFormatToN3DSGPU(texture->format));
+                                  TextureNextPow2(texture->w),
+                                  TextureNextPow2(texture->h),
+                                  PixelFormatToN3DSGPU(texture->format));
     }
 
     if (!initialized) {
@@ -253,10 +246,10 @@ N3DS_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_PropertiesI
             return SDL_OutOfMemory();
         }
 
-        Mtx_Ortho(&N3DS_texture->renderProjMtx, 0.0,N3DS_texture->texture.width, N3DS_texture->texture.height,0.0,-1.0, 1.0, true);
+        Mtx_Ortho(&N3DS_texture->renderProjMtx, 0.0, N3DS_texture->texture.width, N3DS_texture->texture.height, 0.0, -1.0, 1.0, true);
 
-	    C3D_FrameSplit(0);
-	    C3D_RenderTargetClear(N3DS_texture->renderTarget, C3D_CLEAR_ALL, __builtin_bswap32(0), 0);
+        C3D_FrameSplit(0);
+        C3D_RenderTargetClear(N3DS_texture->renderTarget, C3D_CLEAR_ALL, __builtin_bswap32(0), 0);
     } else if (texture->access == SDL_TEXTUREACCESS_STREAMING) {
         N3DS_texture->unswizzledBuffer = linearAlloc(N3DS_texture->unswizzledSize);
     }
@@ -265,18 +258,13 @@ N3DS_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_PropertiesI
     return true;
 }
 
-static bool
-N3DS_LockTexture(SDL_Renderer * renderer, SDL_Texture * texture,
-                 const SDL_Rect * rect, void **pixels, int *pitch);
+static bool N3DS_LockTexture(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Rect *rect, void **pixels, int *pitch);
 
-static void
-N3DS_UnlockTexture(SDL_Renderer * renderer, SDL_Texture * texture);
+static void N3DS_UnlockTexture(SDL_Renderer *renderer, SDL_Texture *texture);
 
-static bool
-N3DS_UpdateTexture(SDL_Renderer * renderer, SDL_Texture * texture,
-                   const SDL_Rect * rect, const void *pixels, int pitch)
+static bool N3DS_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Rect *rect, const void *pixels, int pitch)
 {
-    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
+    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *)texture->internal;
 
     const Uint8 *src;
     Uint8 *dst;
@@ -293,7 +281,7 @@ N3DS_UpdateTexture(SDL_Renderer * renderer, SDL_Texture * texture,
     N3DS_LockTexture(renderer, texture, rect, (void **)&dst, &dpitch);
     length = rect->w * SDL_BYTESPERPIXEL(texture->format);
     if (length == pitch && length == dpitch) {
-        SDL_memcpy(dst, src, length*rect->h);
+        SDL_memcpy(dst, src, length * rect->h);
     } else {
         for (row = 0; row < rect->h; ++row) {
             SDL_memcpy(dst, src, length);
@@ -311,24 +299,21 @@ N3DS_UpdateTexture(SDL_Renderer * renderer, SDL_Texture * texture,
     return true;
 }
 
-static bool
-N3DS_LockTexture(SDL_Renderer * renderer, SDL_Texture * texture,
-                 const SDL_Rect * rect, void **pixels, int *pitch)
+static bool N3DS_LockTexture(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Rect *rect, void **pixels, int *pitch)
 {
-    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
+    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *)texture->internal;
 
     *pixels =
-        (void *) ((Uint8 *) N3DS_texture->unswizzledBuffer + rect->y * N3DS_texture->unswizzledPitch +
-                  rect->x * SDL_BYTESPERPIXEL(texture->format));
+        (void *)((Uint8 *)N3DS_texture->unswizzledBuffer + rect->y * N3DS_texture->unswizzledPitch +
+                 rect->x * SDL_BYTESPERPIXEL(texture->format));
     *pitch = N3DS_texture->unswizzledPitch;
 
     return true;
 }
 
-static void
-N3DS_UnlockTexture(SDL_Renderer * renderer, SDL_Texture * texture)
+static void N3DS_UnlockTexture(SDL_Renderer *renderer, SDL_Texture *texture)
 {
-    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
+    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *)texture->internal;
 
     /* We do whole texture updates, at least for now */
 
@@ -348,7 +333,7 @@ N3DS_UnlockTexture(SDL_Renderer * renderer, SDL_Texture * texture)
     if (SDL_BYTESPERPIXEL(texture->format) == 4) {
         uint32_t *dst = N3DS_texture->texture.data;
         for (int y = 0; y < N3DS_texture->unswizzledHeight; y++) {
-            uint32_t *src = (uint32_t*) (N3DS_texture->unswizzledBuffer + (y * N3DS_texture->unswizzledPitch));
+            uint32_t *src = (uint32_t *)(N3DS_texture->unswizzledBuffer + (y * N3DS_texture->unswizzledPitch));
             for (int x = 0; x < N3DS_texture->unswizzledWidth; x++, src++) {
                 dst[SwizzleLUT[(x & 7) + ((y & 7) << 3)] + ((x & (~7)) << 3) + ((y & (~7)) * N3DS_texture->texture.width)] = *src;
             }
@@ -356,7 +341,7 @@ N3DS_UnlockTexture(SDL_Renderer * renderer, SDL_Texture * texture)
     } else if (SDL_BYTESPERPIXEL(texture->format) == 2) {
         uint16_t *dst = N3DS_texture->texture.data;
         for (int y = 0; y < N3DS_texture->unswizzledHeight; y++) {
-            uint16_t *src = (uint16_t*) (N3DS_texture->unswizzledBuffer + (y * N3DS_texture->unswizzledPitch));
+            uint16_t *src = (uint16_t *)(N3DS_texture->unswizzledBuffer + (y * N3DS_texture->unswizzledPitch));
             for (int x = 0; x < N3DS_texture->unswizzledWidth; x++, src++) {
                 dst[SwizzleLUT[(x & 7) + ((y & 7) << 3)] + ((x & (~7)) << 3) + ((y & (~7)) * N3DS_texture->texture.width)] = *src;
             }
@@ -366,17 +351,15 @@ N3DS_UnlockTexture(SDL_Renderer * renderer, SDL_Texture * texture)
     C3D_TexFlush(&N3DS_texture->texture);
 }
 
-static void
-N3DS_SetTextureScaleMode(SDL_Texture * texture, SDL_ScaleMode scaleMode)
+static void N3DS_SetTextureScaleMode(SDL_Texture *texture, SDL_ScaleMode scaleMode)
 {
-    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
+    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *)texture->internal;
     GPU_TEXTURE_FILTER_PARAM filter = (scaleMode == SDL_SCALEMODE_NEAREST) ? GPU_NEAREST : GPU_LINEAR;
 
     C3D_TexSetFilter(&N3DS_texture->texture, filter, filter);
 }
 
-static bool
-N3DS_SetRenderTarget(SDL_Renderer * renderer, SDL_Texture * texture)
+static bool N3DS_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
 {
     N3DS_RenderData *data = renderer->internal;
     data->boundTarget = texture;
@@ -387,7 +370,7 @@ N3DS_SetRenderTarget(SDL_Renderer * renderer, SDL_Texture * texture)
         }
         C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, data->projMtxShaderLoc, &data->renderProjMtx);
     } else {
-        N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
+        N3DS_TextureData *N3DS_texture = (N3DS_TextureData *)texture->internal;
         if (N3DS_texture->renderTarget != NULL) {
             if (!C3D_FrameDrawOn(N3DS_texture->renderTarget)) {
                 return false;
@@ -401,21 +384,20 @@ N3DS_SetRenderTarget(SDL_Renderer * renderer, SDL_Texture * texture)
     return true;
 }
 
-static bool
-N3DS_QueueNoOp(SDL_Renderer * renderer, SDL_RenderCommand *cmd)
+static bool N3DS_QueueNoOp(SDL_Renderer *renderer, SDL_RenderCommand *cmd)
 {
-    return true;  /* nothing to do in this backend. */
+    return true; /* nothing to do in this backend. */
 }
 
 static bool N3DS_QueueDrawPoints(SDL_Renderer *renderer, SDL_RenderCommand *cmd, const SDL_FPoint *points, int count)
 {
     VertVCT *verts = (VertVCT *)SDL_AllocateRenderVertices(renderer, count * sizeof(VertVCT), 4, &cmd->data.draw.first);
     int i;
-    
+
     if (!verts) {
         return false;
     }
-    
+
     SDL_Color col = FColorToColor(cmd->data.color.color);
     SDL_Color colABGR = {
         .r = col.a,
@@ -423,9 +405,9 @@ static bool N3DS_QueueDrawPoints(SDL_Renderer *renderer, SDL_RenderCommand *cmd,
         .b = col.g,
         .a = col.r
     };
-    
+
     cmd->data.draw.count = count;
-    
+
     for (i = 0; i < count; i++, verts++, points++) {
         verts->x = points->x;
         verts->y = points->y;
@@ -433,15 +415,14 @@ static bool N3DS_QueueDrawPoints(SDL_Renderer *renderer, SDL_RenderCommand *cmd,
         verts->u = 0.0f;
         verts->v = 0.0f;
     }
-    
+
     return true;
 }
 
-static bool
-N3DS_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *texture,
-                             const float *xy, int xy_stride, const SDL_FColor *color, int color_stride, const float *uv, int uv_stride,
-                             int num_vertices, const void *indices, int num_indices, int size_indices,
-                             float scale_x, float scale_y)
+static bool N3DS_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *texture,
+                               const float *xy, int xy_stride, const SDL_FColor *color, int color_stride, const float *uv, int uv_stride,
+                               int num_vertices, const void *indices, int num_indices, int size_indices,
+                               float scale_x, float scale_y)
 {
     int i;
     int count = indices ? num_indices : num_vertices;
@@ -450,7 +431,7 @@ N3DS_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *
     cmd->data.draw.count = count;
     size_indices = indices ? size_indices : 0;
 
-    verts = (VertVCT *) SDL_AllocateRenderVertices(renderer, count * sizeof (VertVCT), 0, &cmd->data.draw.first);
+    verts = (VertVCT *)SDL_AllocateRenderVertices(renderer, count * sizeof(VertVCT), 0, &cmd->data.draw.first);
     if (!verts) {
         return false;
     }
@@ -470,8 +451,8 @@ N3DS_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *
                 j = i;
             }
 
-            xy_ = (float *)((char*)xy + j * xy_stride);
-            col_ = *(SDL_FColor *)((char*)color + j * color_stride);
+            xy_ = (float *)((char *)xy + j * xy_stride);
+            col_ = *(SDL_FColor *)((char *)color + j * color_stride);
 
             verts->x = xy_[0] * scale_x;
             verts->y = xy_[1] * scale_y;
@@ -481,7 +462,7 @@ N3DS_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *
             verts++;
         }
     } else {
-        N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
+        N3DS_TextureData *N3DS_texture = (N3DS_TextureData *)texture->internal;
         for (i = 0; i < count; i++) {
             int j;
             float *xy_;
@@ -498,9 +479,9 @@ N3DS_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *
                 j = i;
             }
 
-            xy_ = (float *)((char*)xy + j * xy_stride);
-            col_ = *(SDL_FColor *)((char*)color + j * color_stride);
-            uv_ = (float *)((char*)uv + j * uv_stride);
+            xy_ = (float *)((char *)xy + j * xy_stride);
+            col_ = *(SDL_FColor *)((char *)color + j * color_stride);
+            uv_ = (float *)((char *)uv + j * uv_stride);
 
             verts->x = xy_[0] * scale_x;
             verts->y = xy_[1] * scale_y;
@@ -517,11 +498,10 @@ N3DS_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *
     return true;
 }
 
-static bool
-N3DS_QueueFillRects(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL_FRect * rects, int count)
+static bool N3DS_QueueFillRects(SDL_Renderer *renderer, SDL_RenderCommand *cmd, const SDL_FRect *rects, int count)
 {
     SDL_Color color = FColorToColor(cmd->data.draw.color);
-    VertVCT *verts = (VertVCT *) SDL_AllocateRenderVertices(renderer, count * 6 * sizeof (VertVCT), 0, &cmd->data.draw.first);
+    VertVCT *verts = (VertVCT *)SDL_AllocateRenderVertices(renderer, count * 6 * sizeof(VertVCT), 0, &cmd->data.draw.first);
     int i;
 
     if (!verts) {
@@ -565,11 +545,10 @@ N3DS_QueueFillRects(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL_F
     return true;
 }
 
-static bool
-N3DS_QueueCopy(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *texture,
-                         const SDL_FRect *srcrect, const SDL_FRect *dstrect)
+static bool N3DS_QueueCopy(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *texture,
+                           const SDL_FRect *srcrect, const SDL_FRect *dstrect)
 {
-    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
+    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *)texture->internal;
 
     SDL_Color color = FColorToColor(cmd->data.draw.color);
     VertVCT *verts;
@@ -578,12 +557,12 @@ N3DS_QueueCopy(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *text
     const float width = dstrect->w;
     const float height = dstrect->h;
 
-    const float u0 = (float) srcrect->x / N3DS_texture->texture.width;
-    const float v0 = 1.0f - (float) srcrect->y / N3DS_texture->texture.height;
-    const float u1 = (float) (srcrect->x + srcrect->w) / N3DS_texture->texture.width;
-    const float v1 = 1.0f - (float) (srcrect->y + srcrect->h) / N3DS_texture->texture.height;
+    const float u0 = (float)srcrect->x / N3DS_texture->texture.width;
+    const float v0 = 1.0f - (float)srcrect->y / N3DS_texture->texture.height;
+    const float u1 = (float)(srcrect->x + srcrect->w) / N3DS_texture->texture.width;
+    const float v1 = 1.0f - (float)(srcrect->y + srcrect->h) / N3DS_texture->texture.height;
 
-    verts = (VertVCT *) SDL_AllocateRenderVertices(renderer, 6 * sizeof (VertVCT), 0, &cmd->data.draw.first);
+    verts = (VertVCT *)SDL_AllocateRenderVertices(renderer, 6 * sizeof(VertVCT), 0, &cmd->data.draw.first);
     if (!verts) {
         return false;
     }
@@ -634,15 +613,14 @@ N3DS_QueueCopy(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *text
     return true;
 }
 
-static bool
-N3DS_QueueCopyEx(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *texture,
-                           const SDL_FRect *srcrect, const SDL_FRect *dstrect,
-                           const double angle, const SDL_FPoint *center, const SDL_FlipMode flip, float scale_x, float scale_y)
+static bool N3DS_QueueCopyEx(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *texture,
+                             const SDL_FRect *srcrect, const SDL_FRect *dstrect,
+                             const double angle, const SDL_FPoint *center, const SDL_FlipMode flip, float scale_x, float scale_y)
 {
-    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
+    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *)texture->internal;
 
     SDL_Color color = FColorToColor(cmd->data.draw.color);
-    VertVCT *verts = (VertVCT *) SDL_AllocateRenderVertices(renderer, 6 * sizeof (VertVCT), 0, &cmd->data.draw.first);
+    VertVCT *verts = (VertVCT *)SDL_AllocateRenderVertices(renderer, 6 * sizeof(VertVCT), 0, &cmd->data.draw.first);
     const float centerx = center->x;
     const float centery = center->y;
     const float x = dstrect->x + centerx;
@@ -652,10 +630,10 @@ N3DS_QueueCopyEx(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *te
     float s, c;
     float cw1, sw1, ch1, sh1, cw2, sw2, ch2, sh2;
 
-    float u0 = (float) srcrect->x / N3DS_texture->texture.width;
-    float v0 = 1.0f - (float) srcrect->y / N3DS_texture->texture.height;
-    float u1 = (float) (srcrect->x + srcrect->w) / N3DS_texture->texture.width;
-    float v1 = 1.0f - (float) (srcrect->y + srcrect->h) / N3DS_texture->texture.height;
+    float u0 = (float)srcrect->x / N3DS_texture->texture.width;
+    float v0 = 1.0f - (float)srcrect->y / N3DS_texture->texture.height;
+    float u1 = (float)(srcrect->x + srcrect->w) / N3DS_texture->texture.width;
+    float v1 = 1.0f - (float)(srcrect->y + srcrect->h) / N3DS_texture->texture.height;
 
     if (!verts) {
         return false;
@@ -664,7 +642,7 @@ N3DS_QueueCopyEx(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *te
     cmd->data.draw.count = 6;
 
     s = sinf(degToRad(360 - (float)angle));
-    c = cosf(degToRad(360- (float)angle));
+    c = cosf(degToRad(360 - (float)angle));
 
     cw1 = c * -centerx;
     sw1 = s * -centerx;
@@ -747,8 +725,8 @@ N3DS_QueueCopyEx(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *te
     return true;
 }
 
-static void
-ResetBlendState(N3DS_RenderData *data, N3DS_BlendState* state) {
+static void ResetBlendState(N3DS_RenderData *data, N3DS_BlendState *state)
+{
     state->mode = SDL_BLENDMODE_INVALID;
     state->texture = NULL;
     C3D_SetTexEnv(0, &data->envNoTex);
@@ -766,10 +744,9 @@ static void StartDrawing(SDL_Renderer *renderer)
     }
 }
 
-static void
-N3DS_SetBlendState(N3DS_RenderData* data, N3DS_BlendState* state)
+static void N3DS_SetBlendState(N3DS_RenderData *data, N3DS_BlendState *state)
 {
-    N3DS_BlendState* current = &data->blendState;
+    N3DS_BlendState *current = &data->blendState;
 
     if (state->mode != current->mode) {
         switch (state->mode) {
@@ -803,7 +780,7 @@ N3DS_SetBlendState(N3DS_RenderData* data, N3DS_BlendState* state)
     }
 
     if (state->texture) {
-        N3DS_SetTextureScaleMode(state->texture,state->texture->scaleMode);
+        N3DS_SetTextureScaleMode(state->texture, state->texture->scaleMode);
     }
 
     *current = *state;
@@ -814,10 +791,9 @@ static void N3DS_InvalidateCachedState(SDL_Renderer *renderer)
     // currently this doesn't do anything. If this needs to do something (and someone is mixing their own rendering calls in!), update this.
 }
 
-static bool
-N3DS_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize)
+static bool N3DS_RunCommandQueue(SDL_Renderer *renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize)
 {
-    N3DS_RenderData *data = (N3DS_RenderData *) renderer->internal;
+    N3DS_RenderData *data = (N3DS_RenderData *)renderer->internal;
 
     C3D_BufInfo *bufInfo = C3D_GetBufInfo();
     BufInfo_Init(bufInfo);
@@ -827,132 +803,139 @@ N3DS_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vert
 
     while (cmd) {
         switch (cmd->command) {
-            case SDL_RENDERCMD_SETVIEWPORT: {
-                data->viewport = cmd->data.viewport.rect;
+        case SDL_RENDERCMD_SETVIEWPORT:
+        {
+            data->viewport = cmd->data.viewport.rect;
+
+            if (data->boundTarget) {
+                C3D_SetViewport(data->viewport.x, data->viewport.y, data->viewport.w, data->viewport.h);
+            } else {
+                // Handle the tilted render target of the 3DS display.
+                C3D_SetViewport(
+                    data->renderTarget->frameBuf.width - data->viewport.h - data->viewport.y,
+                    data->renderTarget->frameBuf.height - data->viewport.w - data->viewport.x,
+                    data->viewport.h, data->viewport.w);
+                Mtx_OrthoTilt(&data->renderProjMtx, 0.0, data->viewport.w, data->viewport.h, 0.0, -1.0, 1.0, true);
+                C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, data->projMtxShaderLoc, &data->renderProjMtx);
+            }
+            break;
+        }
+
+        case SDL_RENDERCMD_SETDRAWCOLOR:
+        {
+            break;
+        }
+
+        case SDL_RENDERCMD_DRAW_POINTS:
+        {
+            const size_t first = cmd->data.draw.first / sizeof(VertVCT);
+            const size_t count = cmd->data.draw.count;
+            N3DS_BlendState state = {
+                .texture = NULL,
+                .mode = cmd->data.draw.blend
+            };
+            N3DS_SetBlendState(data, &state);
+            C3D_DrawArrays(GPU_TRIANGLE_STRIP, first, count);
+            break;
+        }
+
+        case SDL_RENDERCMD_DRAW_LINES:
+        {
+            const size_t first = cmd->data.draw.first / sizeof(VertVCT);
+            const size_t count = cmd->data.draw.count;
+            N3DS_BlendState state = {
+                .texture = NULL,
+                .mode = cmd->data.draw.blend
+            };
+            N3DS_SetBlendState(data, &state);
+            C3D_DrawArrays(GPU_TRIANGLE_STRIP, first, count);
+            break;
+        }
+
+        case SDL_RENDERCMD_SETCLIPRECT:
+        {
+            const SDL_Rect *rect = &cmd->data.cliprect.rect;
+
+            if (cmd->data.cliprect.enabled) {
+                unsigned int x = SDL_max(0, rect->x), w = rect->w;
+                unsigned int y = SDL_max(0, rect->y), h = rect->h;
 
                 if (data->boundTarget) {
-                    C3D_SetViewport(data->viewport.x, data->viewport.y, data->viewport.w, data->viewport.h);
+                    C3D_SetScissor(GPU_SCISSOR_NORMAL,
+                                   SDL_min(data->renderTarget->frameBuf.width, x),
+                                   SDL_min(data->renderTarget->frameBuf.height, y),
+                                   SDL_min(data->renderTarget->frameBuf.width, x + w),
+                                   SDL_min(data->renderTarget->frameBuf.height, y + h));
                 } else {
-                    // Handle the tilted render target of the 3DS display.
-                    C3D_SetViewport(
-                               data->renderTarget->frameBuf.width - data->viewport.h - data->viewport.y,
-                               data->renderTarget->frameBuf.height - data->viewport.w - data->viewport.x,
-                               data->viewport.h, data->viewport.w);
-                    Mtx_OrthoTilt(&data->renderProjMtx, 0.0, data->viewport.w, data->viewport.h, 0.0, -1.0, 1.0, true);
-                    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, data->projMtxShaderLoc, &data->renderProjMtx);
+                    C3D_SetScissor(
+                        GPU_SCISSOR_NORMAL,
+                        SDL_max(0, data->renderTarget->frameBuf.width - ((y + data->viewport.y) + h)),
+                        SDL_max(0, data->renderTarget->frameBuf.height - ((x + data->viewport.x) + w)),
+                        SDL_max(0, data->renderTarget->frameBuf.width - (y + data->viewport.y)),
+                        SDL_max(0, data->renderTarget->frameBuf.height - (x + data->viewport.x)));
                 }
-                break;
+            } else {
+                C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
             }
+            break;
+        }
 
-            case SDL_RENDERCMD_SETDRAWCOLOR: {
-                break;
-            }
+        case SDL_RENDERCMD_CLEAR:
+        {
+            const Uint8 r = (Uint8)SDL_roundf(SDL_clamp(cmd->data.color.color.r * cmd->data.color.color_scale, 0.0f, 1.0f) * 255.0f);
+            const Uint8 g = (Uint8)SDL_roundf(SDL_clamp(cmd->data.color.color.g * cmd->data.color.color_scale, 0.0f, 1.0f) * 255.0f);
+            const Uint8 b = (Uint8)SDL_roundf(SDL_clamp(cmd->data.color.color.b * cmd->data.color.color_scale, 0.0f, 1.0f) * 255.0f);
+            const Uint8 a = (Uint8)SDL_roundf(SDL_clamp(cmd->data.color.color.a, 0.0f, 1.0f) * 255.0f);
+            C3D_FrameBufClear(
+                C3D_GetFrameBuf(),
+                C3D_CLEAR_ALL,
+                COL8888(r, g, b, a),
+                0);
+            break;
+        }
 
-            case SDL_RENDERCMD_DRAW_POINTS: {
-                const size_t first = cmd->data.draw.first / sizeof(VertVCT);
-                const size_t count = cmd->data.draw.count;
-                N3DS_BlendState state = {
-                    .texture = NULL,
-                    .mode = cmd->data.draw.blend
-                };
-                N3DS_SetBlendState(data, &state);
-                C3D_DrawArrays(GPU_TRIANGLE_STRIP, first, count);
-                break;
-            }
+        case SDL_RENDERCMD_FILL_RECTS:
+        {
+            const size_t first = cmd->data.draw.first / sizeof(VertVCT);
+            const size_t count = cmd->data.draw.count;
+            N3DS_BlendState state = {
+                .texture = NULL,
+                .mode = cmd->data.draw.blend
+            };
+            N3DS_SetBlendState(data, &state);
+            C3D_DrawArrays(GPU_TRIANGLES, first, count);
+            break;
+        }
 
-            case SDL_RENDERCMD_DRAW_LINES: {
-                const size_t first = cmd->data.draw.first / sizeof(VertVCT);
-                const size_t count = cmd->data.draw.count;
-                N3DS_BlendState state = {
-                    .texture = NULL,
-                    .mode = cmd->data.draw.blend
-                };
-                N3DS_SetBlendState(data, &state);
-                C3D_DrawArrays(GPU_TRIANGLE_STRIP, first, count);
-                break;
-            }
+        case SDL_RENDERCMD_COPY:
+        case SDL_RENDERCMD_COPY_EX:
+        {
+            const size_t first = cmd->data.draw.first / sizeof(VertVCT);
+            const size_t count = cmd->data.draw.count;
+            N3DS_BlendState state = {
+                .texture = cmd->data.draw.texture,
+                .mode = cmd->data.draw.blend
+            };
+            N3DS_SetBlendState(data, &state);
+            C3D_DrawArrays(GPU_TRIANGLES, first, count);
+            break;
+        }
 
-            case SDL_RENDERCMD_SETCLIPRECT: {
-                const SDL_Rect *rect = &cmd->data.cliprect.rect;
+        case SDL_RENDERCMD_GEOMETRY:
+        {
+            const size_t first = cmd->data.draw.first / sizeof(VertVCT);
+            const size_t count = cmd->data.draw.count;
+            N3DS_BlendState state = {
+                .texture = cmd->data.draw.texture,
+                .mode = cmd->data.draw.blend
+            };
+            N3DS_SetBlendState(data, &state);
+            C3D_DrawArrays(GPU_TRIANGLES, first, count);
+            break;
+        }
 
-                if (cmd->data.cliprect.enabled) {
-                    unsigned int x = SDL_max(0, rect->x), w = rect->w;
-                    unsigned int y = SDL_max(0, rect->y), h = rect->h;
-
-                    if (data->boundTarget) {
-                        C3D_SetScissor(GPU_SCISSOR_NORMAL,
-                            SDL_min(data->renderTarget->frameBuf.width,  x),
-                            SDL_min(data->renderTarget->frameBuf.height, y),
-                            SDL_min(data->renderTarget->frameBuf.width,  x + w),
-                            SDL_min(data->renderTarget->frameBuf.height, y + h));
-                    } else {
-                        C3D_SetScissor(
-                            GPU_SCISSOR_NORMAL,
-                            SDL_max(0, data->renderTarget->frameBuf.width - ((y + data->viewport.y) + h)),
-                            SDL_max(0, data->renderTarget->frameBuf.height - ((x + data->viewport.x) + w)),
-                            SDL_max(0, data->renderTarget->frameBuf.width - (y + data->viewport.y)),
-                            SDL_max(0, data->renderTarget->frameBuf.height - (x + data->viewport.x))
-                        );
-                    }
-                } else {
-                    C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
-                }
-                break;
-            }
-
-            case SDL_RENDERCMD_CLEAR: {
-                const Uint8 r = (Uint8)SDL_roundf(SDL_clamp(cmd->data.color.color.r * cmd->data.color.color_scale, 0.0f, 1.0f) * 255.0f);
-                const Uint8 g = (Uint8)SDL_roundf(SDL_clamp(cmd->data.color.color.g * cmd->data.color.color_scale, 0.0f, 1.0f) * 255.0f);
-                const Uint8 b = (Uint8)SDL_roundf(SDL_clamp(cmd->data.color.color.b * cmd->data.color.color_scale, 0.0f, 1.0f) * 255.0f);
-                const Uint8 a = (Uint8)SDL_roundf(SDL_clamp(cmd->data.color.color.a, 0.0f, 1.0f) * 255.0f);
-                C3D_FrameBufClear(
-                    C3D_GetFrameBuf(),
-                    C3D_CLEAR_ALL,
-                    COL8888(r, g, b, a),
-                    0
-                );
-                break;
-            }
-
-            case SDL_RENDERCMD_FILL_RECTS: {
-                const size_t first = cmd->data.draw.first / sizeof(VertVCT);
-                const size_t count = cmd->data.draw.count;
-                N3DS_BlendState state = {
-                    .texture = NULL,
-                    .mode = cmd->data.draw.blend
-                };
-                N3DS_SetBlendState(data, &state);
-                C3D_DrawArrays(GPU_TRIANGLES, first, count);
-                break;
-            }
-
-            case SDL_RENDERCMD_COPY:
-            case SDL_RENDERCMD_COPY_EX: {
-                const size_t first = cmd->data.draw.first / sizeof(VertVCT);
-                const size_t count = cmd->data.draw.count;
-                N3DS_BlendState state = {
-                    .texture = cmd->data.draw.texture,
-                    .mode = cmd->data.draw.blend
-                };
-                N3DS_SetBlendState(data, &state);
-                C3D_DrawArrays(GPU_TRIANGLES, first, count);
-                break;
-            }
-
-            case SDL_RENDERCMD_GEOMETRY: {
-                const size_t first = cmd->data.draw.first / sizeof(VertVCT);
-                const size_t count = cmd->data.draw.count;
-                N3DS_BlendState state = {
-                    .texture = cmd->data.draw.texture,
-                    .mode = cmd->data.draw.blend
-                };
-                N3DS_SetBlendState(data, &state);
-                C3D_DrawArrays(GPU_TRIANGLES, first, count);
-                break;
-            }
-
-            case SDL_RENDERCMD_NO_OP:
-                break;
+        case SDL_RENDERCMD_NO_OP:
+            break;
         }
 
         cmd = cmd->next;
@@ -961,11 +944,9 @@ N3DS_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vert
     return true;
 }
 
-
-static bool
-N3DS_RenderPresent(SDL_Renderer * renderer)
+static bool N3DS_RenderPresent(SDL_Renderer *renderer)
 {
-    N3DS_RenderData *data = (N3DS_RenderData *) renderer->internal;
+    N3DS_RenderData *data = (N3DS_RenderData *)renderer->internal;
     if (!data->displayListAvail) {
         return false;
     }
@@ -981,11 +962,10 @@ N3DS_RenderPresent(SDL_Renderer * renderer)
     return true;
 }
 
-static void
-N3DS_DestroyTexture(SDL_Renderer * renderer, SDL_Texture * texture)
+static void N3DS_DestroyTexture(SDL_Renderer *renderer, SDL_Texture *texture)
 {
-    N3DS_RenderData *renderdata = (N3DS_RenderData *) renderer->internal;
-    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
+    N3DS_RenderData *renderdata = (N3DS_RenderData *)renderer->internal;
+    N3DS_TextureData *N3DS_texture = (N3DS_TextureData *)texture->internal;
 
     if (renderdata == 0)
         return;
@@ -994,7 +974,7 @@ N3DS_DestroyTexture(SDL_Renderer * renderer, SDL_Texture * texture)
         return;
 
     if (N3DS_texture->renderTarget != NULL) {
-        if(!renderdata->displayListAvail)
+        if (!renderdata->displayListAvail)
             C3D_RenderTargetDelete(N3DS_texture->renderTarget);
         else {
             /** Frame has not ended yet, we must queue the target to delete at the end of the frame. */
@@ -1002,8 +982,7 @@ N3DS_DestroyTexture(SDL_Renderer * renderer, SDL_Texture * texture)
                 int newCapacity = renderdata->targetDeleteQueueCapacity == 0 ? 4 : renderdata->targetDeleteQueueCapacity * 2;
                 C3D_RenderTarget **newArray = (C3D_RenderTarget **)SDL_realloc(
                     renderdata->targetDeleteQueue,
-                    newCapacity * sizeof(C3D_RenderTarget *)
-                );
+                    newCapacity * sizeof(C3D_RenderTarget *));
                 if (newArray == NULL) {
                     C3D_FrameEnd(0);
                     C3D_RenderTargetDelete(N3DS_texture->renderTarget);
@@ -1028,10 +1007,9 @@ N3DS_DestroyTexture(SDL_Renderer * renderer, SDL_Texture * texture)
     texture->internal = NULL;
 }
 
-static void
-N3DS_DestroyRenderer(SDL_Renderer * renderer)
+static void N3DS_DestroyRenderer(SDL_Renderer *renderer)
 {
-    N3DS_RenderData *data = (N3DS_RenderData *) renderer->internal;
+    N3DS_RenderData *data = (N3DS_RenderData *)renderer->internal;
     if (data) {
         if (!data->initialized)
             return;
@@ -1053,16 +1031,14 @@ N3DS_DestroyRenderer(SDL_Renderer * renderer)
     }
 }
 
-static bool
-N3DS_SetVSync(SDL_Renderer * renderer, const int vsync)
+static bool N3DS_SetVSync(SDL_Renderer *renderer, const int vsync)
 {
     N3DS_RenderData *data = renderer->internal;
     data->vsync = vsync;
     return true;
 }
 
-bool
-N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_PropertiesID create_props)
+bool N3DS_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_PropertiesID create_props)
 {
     N3DS_RenderData *data;
     int width, height, pixelFormat;
@@ -1075,7 +1051,7 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
         return SDL_SetError("Unsupported output colorspace");
     }
 
-    data = (N3DS_RenderData *) SDL_calloc(1, sizeof(*data));
+    data = (N3DS_RenderData *)SDL_calloc(1, sizeof(*data));
     if (!data) {
         N3DS_DestroyRenderer(renderer);
         return SDL_OutOfMemory();
@@ -1106,10 +1082,10 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
 
     renderer->name = N3DS_RenderDriver.name;
     renderer->npot_texture_wrap_unsupported = true;
-    SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_RGBA8888);
-    SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_RGBA5551);
-    SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_RGB565);
-    SDL_AddSupportedTextureFormat(renderer,SDL_PIXELFORMAT_RGBA4444);
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGBA8888);
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGBA5551);
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGB565);
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGBA4444);
     SDL_SetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 1024);
     data->initialized = true;
 
@@ -1117,7 +1093,7 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
 
     /* Load shader */
 
-    data->dvlb = DVLB_ParseFile((uint32_t*) n3ds_shader_v, sizeof(n3ds_shader_v));
+    data->dvlb = DVLB_ParseFile((uint32_t *)n3ds_shader_v, sizeof(n3ds_shader_v));
     shaderProgramInit(&data->shaderProgram);
     shaderProgramSetVsh(&data->shaderProgram, &data->dvlb->DVLE[0]);
     data->projMtxShaderLoc = shaderInstanceGetUniformLocation(data->shaderProgram.vertexShader, "projection");
@@ -1135,8 +1111,8 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
 
     C3D_RenderTargetClear(data->renderTarget, C3D_CLEAR_ALL, 0, 0);
     C3D_RenderTargetSetOutput(data->renderTarget,
-        windowIsBottom ? GFX_BOTTOM : GFX_TOP, GFX_LEFT,
-        GX_TRANSFER_IN_FORMAT(pixelFormat) | GX_TRANSFER_OUT_FORMAT(pixelFormat));
+                              windowIsBottom ? GFX_BOTTOM : GFX_TOP, GFX_LEFT,
+                              GX_TRANSFER_IN_FORMAT(pixelFormat) | GX_TRANSFER_OUT_FORMAT(pixelFormat));
     Mtx_OrthoTilt(&data->renderProjMtx, 0.0, width, height, 0.0, -1.0, 1.0, true);
 
     C3D_DepthTest(false, GPU_GEQUAL, GPU_WRITE_ALL);
@@ -1157,15 +1133,15 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
 
     /* Texture environments */
     C3D_TexEnvInit(&data->envTex);
-    C3D_TexEnvSrc(&data->envTex, C3D_Both, GPU_TEXTURE0, (GPU_TEVSRC) 0, (GPU_TEVSRC) 0);
-    C3D_TexEnvOpRgb(&data->envTex, (GPU_TEVOP_RGB) 0, (GPU_TEVOP_RGB) 0, (GPU_TEVOP_RGB) 0);
-    C3D_TexEnvOpAlpha(&data->envTex, (GPU_TEVOP_A) 0, (GPU_TEVOP_A) 0, (GPU_TEVOP_A) 0);
+    C3D_TexEnvSrc(&data->envTex, C3D_Both, GPU_TEXTURE0, (GPU_TEVSRC)0, (GPU_TEVSRC)0);
+    C3D_TexEnvOpRgb(&data->envTex, (GPU_TEVOP_RGB)0, (GPU_TEVOP_RGB)0, (GPU_TEVOP_RGB)0);
+    C3D_TexEnvOpAlpha(&data->envTex, (GPU_TEVOP_A)0, (GPU_TEVOP_A)0, (GPU_TEVOP_A)0);
     C3D_TexEnvFunc(&data->envTex, C3D_Both, GPU_MODULATE);
 
     C3D_TexEnvInit(&data->envNoTex);
-    C3D_TexEnvSrc(&data->envNoTex, C3D_Both, GPU_PRIMARY_COLOR, (GPU_TEVSRC) 0, (GPU_TEVSRC) 0);
-    C3D_TexEnvOpRgb(&data->envNoTex, (GPU_TEVOP_RGB) 0, (GPU_TEVOP_RGB) 0, (GPU_TEVOP_RGB) 0);
-    C3D_TexEnvOpAlpha(&data->envNoTex, (GPU_TEVOP_A) 0, (GPU_TEVOP_A) 0, (GPU_TEVOP_A) 0);
+    C3D_TexEnvSrc(&data->envNoTex, C3D_Both, GPU_PRIMARY_COLOR, (GPU_TEVSRC)0, (GPU_TEVSRC)0);
+    C3D_TexEnvOpRgb(&data->envNoTex, (GPU_TEVOP_RGB)0, (GPU_TEVOP_RGB)0, (GPU_TEVOP_RGB)0);
+    C3D_TexEnvOpAlpha(&data->envNoTex, (GPU_TEVOP_A)0, (GPU_TEVOP_A)0, (GPU_TEVOP_A)0);
     C3D_TexEnvFunc(&data->envNoTex, C3D_Both, GPU_REPLACE);
 
     ResetBlendState(data, &data->blendState);
@@ -1174,7 +1150,7 @@ N3DS_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, SDL_Properties
 }
 
 SDL_RenderDriver N3DS_RenderDriver = {
-    N3DS_CreateRenderer,"N3DS"
+    N3DS_CreateRenderer, "N3DS"
 };
 
 #endif /* SDL_VIDEO_RENDER_N3DS */
