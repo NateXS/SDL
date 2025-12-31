@@ -366,7 +366,7 @@ N3DS_UnlockTexture(SDL_Renderer * renderer, SDL_Texture * texture)
 }
 
 static void
-N3DS_SetTextureScaleMode(SDL_Renderer * renderer, SDL_Texture * texture, SDL_ScaleMode scaleMode)
+N3DS_SetTextureScaleMode(SDL_Texture * texture, SDL_ScaleMode scaleMode)
 {
     N3DS_TextureData *N3DS_texture = (N3DS_TextureData *) texture->internal;
     GPU_TEXTURE_FILTER_PARAM filter = (scaleMode == SDL_SCALEMODE_NEAREST) ? GPU_NEAREST : GPU_LINEAR;
@@ -662,8 +662,8 @@ N3DS_QueueCopyEx(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture *te
 
     cmd->data.draw.count = 6;
 
-    s = sinf(degToRad(360-angle));
-    c = cosf(degToRad(360-angle));
+    s = sinf(degToRad(360 - (float)angle));
+    c = cosf(degToRad(360- (float)angle));
 
     cw1 = c * -centerx;
     sw1 = s * -centerx;
@@ -801,6 +801,10 @@ N3DS_SetBlendState(N3DS_RenderData* data, N3DS_BlendState* state)
         }
     }
 
+    if (state->texture) {
+        N3DS_SetTextureScaleMode(state->texture,state->texture->scaleMode);
+    }
+
     *current = *state;
 }
 
@@ -833,10 +837,9 @@ N3DS_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vert
                                data->renderTarget->frameBuf.width - data->viewport.h - data->viewport.y,
                                data->renderTarget->frameBuf.height - data->viewport.w - data->viewport.x,
                                data->viewport.h, data->viewport.w);
+                    Mtx_OrthoTilt(&data->renderProjMtx, 0.0, data->viewport.w, data->viewport.h, 0.0, -1.0, 1.0, true);
+                    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, data->projMtxShaderLoc, &data->renderProjMtx);
                 }
-
-                Mtx_OrthoTilt(&data->renderProjMtx, 0.0, data->viewport.w, data->viewport.h, 0.0, -1.0, 1.0, true);
-                C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, data->projMtxShaderLoc, &data->renderProjMtx);
                 break;
             }
 
@@ -957,12 +960,6 @@ N3DS_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vert
     return true;
 }
 
-static int
-N3DS_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
-                    Uint32 pixel_format, void * pixels, int pitch)
-{
-    return SDL_Unsupported();
-}
 
 static bool
 N3DS_RenderPresent(SDL_Renderer * renderer)
