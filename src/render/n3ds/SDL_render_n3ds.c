@@ -124,6 +124,8 @@ typedef struct
     C3D_TexEnv          envTex;
     C3D_TexEnv          envNoTex;
 
+    SDL_Rect    viewport;
+
     DVLB_s *dvlb;
     shaderProgram_s shaderProgram;
     int projMtxShaderLoc;
@@ -821,16 +823,20 @@ N3DS_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vert
     while (cmd) {
         switch (cmd->command) {
             case SDL_RENDERCMD_SETVIEWPORT: {
-                SDL_Rect *viewport = &cmd->data.viewport.rect;
+                data->viewport = cmd->data.viewport.rect;
+
                 if (data->boundTarget) {
-                    C3D_SetViewport(viewport->x, viewport->y, viewport->w, viewport->h);
+                    C3D_SetViewport(data->viewport.x, data->viewport.y, data->viewport.w, data->viewport.h);
                 } else {
                     // Handle the tilted render target of the 3DS display.
                     C3D_SetViewport(
-                               data->renderTarget->frameBuf.width - viewport->h - viewport->y,
-                               data->renderTarget->frameBuf.height - viewport->w - viewport->x,
-                               viewport->h, viewport->w);
+                               data->renderTarget->frameBuf.width - data->viewport.h - data->viewport.y,
+                               data->renderTarget->frameBuf.height - data->viewport.w - data->viewport.x,
+                               data->viewport.h, data->viewport.w);
                 }
+
+                Mtx_OrthoTilt(&data->renderProjMtx, 0.0, data->viewport.w, data->viewport.h, 0.0, -1.0, 1.0, true);
+                C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, data->projMtxShaderLoc, &data->renderProjMtx);
                 break;
             }
 
@@ -864,6 +870,7 @@ N3DS_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vert
 
             case SDL_RENDERCMD_SETCLIPRECT: {
                 const SDL_Rect *rect = &cmd->data.cliprect.rect;
+
                 if (cmd->data.cliprect.enabled) {
                     unsigned int x = SDL_max(0, rect->x), w = rect->w;
                     unsigned int y = SDL_max(0, rect->y), h = rect->h;
@@ -875,11 +882,13 @@ N3DS_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vert
                             SDL_min(data->renderTarget->frameBuf.width,  x + w),
                             SDL_min(data->renderTarget->frameBuf.height, y + h));
                     } else {
-                        C3D_SetScissor(GPU_SCISSOR_NORMAL,
-                            SDL_max(0, data->renderTarget->frameBuf.width  - (rect->y + rect->h)),
-                            SDL_max(0, data->renderTarget->frameBuf.height - (rect->x + rect->w)),
-                            SDL_max(0, data->renderTarget->frameBuf.width  - rect->y),
-                            SDL_max(0, data->renderTarget->frameBuf.height - rect->x));
+                        C3D_SetScissor(
+                            GPU_SCISSOR_NORMAL,
+                            SDL_max(0, data->renderTarget->frameBuf.width - ((y + data->viewport.y) + h)),
+                            SDL_max(0, data->renderTarget->frameBuf.height - ((x + data->viewport.x) + w)),
+                            SDL_max(0, data->renderTarget->frameBuf.width - (y + data->viewport.y)),
+                            SDL_max(0, data->renderTarget->frameBuf.height - (x + data->viewport.x))
+                        );
                     }
                 } else {
                     C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
