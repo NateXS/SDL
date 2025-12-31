@@ -142,7 +142,7 @@ static const SDL_RenderDriver *render_drivers[] = {
 #ifdef SDL_VIDEO_RENDER_VITA_GXM
     &VITA_GXM_RenderDriver,
 #endif
-#if SDL_VIDEO_RENDER_N3DS
+#ifdef SDL_VIDEO_RENDER_N3DS
     &N3DS_RenderDriver,
 #endif
 #ifdef SDL_VIDEO_RENDER_VULKAN

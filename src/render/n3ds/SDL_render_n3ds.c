@@ -17,7 +17,8 @@
 */
 #include "../../SDL_internal.h"
 
-#if SDL_VIDEO_RENDER_N3DS
+#ifdef SDL_VIDEO_RENDER_N3DS
+
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_pixels.h>
