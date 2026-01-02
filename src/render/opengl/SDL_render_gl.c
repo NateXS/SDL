@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -1933,7 +1933,7 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
 
     // RGBA32 is always supported with OpenGL
     if (bgra_supported) {
-        SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA32);
+        SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA32);    // SDL_PIXELFORMAT_ARGB8888 on little endian systems
     }
     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGBA32);
 

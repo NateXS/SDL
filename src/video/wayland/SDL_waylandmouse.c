@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -545,37 +545,29 @@ static void cursor_frame_done(void *data, struct wl_callback *cb, uint32_t time)
 
 void Wayland_CursorStateSetFrameCallback(SDL_WaylandCursorState *state, void *userdata)
 {
-    if (cursor_thread_context.lock) {
-        SDL_LockMutex(cursor_thread_context.lock);
-    }
+    SDL_LockMutex(cursor_thread_context.lock);
 
     state->frame_callback = wl_surface_frame(state->surface);
     wl_callback_add_listener(state->frame_callback, &cursor_frame_listener, userdata);
 
-    if (cursor_thread_context.lock) {
-        SDL_UnlockMutex(cursor_thread_context.lock);
-    }
+    SDL_UnlockMutex(cursor_thread_context.lock);
 }
 
 void Wayland_CursorStateDestroyFrameCallback(SDL_WaylandCursorState *state)
 {
-    if (cursor_thread_context.lock) {
-        SDL_LockMutex(cursor_thread_context.lock);
-    }
+    SDL_LockMutex(cursor_thread_context.lock);
 
     if (state->frame_callback) {
         wl_callback_destroy(state->frame_callback);
         state->frame_callback = NULL;
     }
 
-    if (cursor_thread_context.lock) {
-        SDL_UnlockMutex(cursor_thread_context.lock);
-    }
+    SDL_UnlockMutex(cursor_thread_context.lock);
 }
 
 static void Wayland_CursorStateResetAnimation(SDL_WaylandCursorState *state, bool lock)
 {
-    if (lock && cursor_thread_context.lock) {
+    if (lock) {
         SDL_LockMutex(cursor_thread_context.lock);
     }
 
@@ -583,7 +575,7 @@ static void Wayland_CursorStateResetAnimation(SDL_WaylandCursorState *state, boo
     state->current_frame_time_ms = 0;
     state->current_frame = 0;
 
-    if (lock && cursor_thread_context.lock) {
+    if (lock) {
         SDL_UnlockMutex(cursor_thread_context.lock);
     }
 }
@@ -1246,12 +1238,12 @@ void Wayland_SeatWarpMouse(SDL_WaylandSeat *seat, SDL_WindowData *window, float 
             if (update_grabs) {
                 Wayland_SeatUpdatePointerGrab(seat);
             }
-
-            /* NOTE: There is a pending warp event under discussion that should replace this when available.
-             * https://gitlab.freedesktop.org/wayland/wayland/-/merge_requests/340
-             */
-            SDL_SendMouseMotion(0, window->sdlwindow, seat->pointer.sdl_id, false, x, y);
         }
+
+        /* NOTE: There is a pending warp event under discussion that should replace this when available.
+         * https://gitlab.freedesktop.org/wayland/wayland/-/merge_requests/340
+         */
+        SDL_SendMouseMotion(0, window->sdlwindow, seat->pointer.sdl_id, false, x, y);
     }
 }
 

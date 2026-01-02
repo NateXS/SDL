@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -522,7 +522,6 @@ static bool GPU_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture, cons
         if (texture->format == SDL_PIXELFORMAT_P010) {
             UVpitch = (pitch + 3) & ~3;
         } else {
-            bpp = 1;
             UVpitch = (pitch + 1) & ~1;
         }
         retval &= GPU_UpdateTextureInternal(renderdata, cpass, data->textureNV, bpp, rect->x / 2, rect->y / 2, (rect->w + 1) / 2, (rect->h + 1) / 2, UVplane, UVpitch);
@@ -534,8 +533,13 @@ static bool GPU_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture, cons
         const Uint8 *Uplane = Yplane + rect->h * Ypitch;
         const Uint8 *Vplane = Uplane + ((rect->h + 1) / 2) * UVpitch;
 
-        retval &= GPU_UpdateTextureInternal(renderdata, cpass, data->textureU, bpp, rect->x / 2, rect->y / 2, (rect->w + 1) / 2, (rect->h + 1) / 2, Uplane, UVpitch);
-        retval &= GPU_UpdateTextureInternal(renderdata, cpass, data->textureV, bpp, rect->x / 2, rect->y / 2, (rect->w + 1) / 2, (rect->h + 1) / 2, Vplane, UVpitch);
+        if (texture->format == SDL_PIXELFORMAT_YV12) {
+            retval &= GPU_UpdateTextureInternal(renderdata, cpass, data->textureV, bpp, rect->x / 2, rect->y / 2, (rect->w + 1) / 2, (rect->h + 1) / 2, Uplane, UVpitch);
+            retval &= GPU_UpdateTextureInternal(renderdata, cpass, data->textureU, bpp, rect->x / 2, rect->y / 2, (rect->w + 1) / 2, (rect->h + 1) / 2, Vplane, UVpitch);
+        } else {
+            retval &= GPU_UpdateTextureInternal(renderdata, cpass, data->textureU, bpp, rect->x / 2, rect->y / 2, (rect->w + 1) / 2, (rect->h + 1) / 2, Uplane, UVpitch);
+            retval &= GPU_UpdateTextureInternal(renderdata, cpass, data->textureV, bpp, rect->x / 2, rect->y / 2, (rect->w + 1) / 2, (rect->h + 1) / 2, Vplane, UVpitch);
+        }
     }
 #endif
 
@@ -1453,6 +1457,8 @@ static bool CreateBackbuffer(GPU_RenderData *data, Uint32 w, Uint32 h, SDL_GPUTe
     tci.sample_count = SDL_GPU_SAMPLECOUNT_1;
     tci.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
 
+    SDL_ReleaseGPUTexture(data->device, data->backbuffer.texture);
+
     data->backbuffer.texture = SDL_CreateGPUTexture(data->device, &tci);
     data->backbuffer.width = w;
     data->backbuffer.height = h;
@@ -1703,6 +1709,12 @@ static bool GPU_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_P
         SDL_SetBooleanProperty(create_props, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, debug);
         SDL_SetBooleanProperty(create_props, SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN, lowpower);
 
+        // Vulkan windows get the Vulkan GPU backend by default
+        if (!SDL_HasProperty(create_props, SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING) &&
+            (SDL_GetWindowFlags(window) & SDL_WINDOW_VULKAN)) {
+            SDL_SetStringProperty(create_props, SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING, "vulkan");
+        }
+
         // Set hints for the greatest hardware compatibility
         // This property allows using the renderer on Intel Haswell and Broadwell GPUs.
         if (!SDL_HasProperty(create_props, SDL_PROP_GPU_DEVICE_CREATE_D3D12_ALLOW_FEWER_RESOURCE_SLOTS_BOOLEAN)) {
@@ -1777,10 +1789,10 @@ static bool GPU_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_P
         }
     }
 
-    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ARGB8888);
-    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ABGR8888);
-    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_XRGB8888);
-    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_XBGR8888);
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRA32);    // SDL_PIXELFORMAT_ARGB8888 on little endian systems
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGBA32);
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_BGRX32);
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGBX32);
     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ABGR2101010);
     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGBA64_FLOAT);
     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_INDEX8);

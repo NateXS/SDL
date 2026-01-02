@@ -5,7 +5,7 @@ if(NOT DEFINED CMAKE_BUILD_TYPE)
 endif()
 
 # See docs/release_checklist.md
-project(SDL3 LANGUAGES C VERSION "3.3.3")
+project(SDL3 LANGUAGES C VERSION "3.5.0")
 
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
   set(SDL3_MAINPROJECT ON)
@@ -367,7 +367,7 @@ dep_option(SDL_RENDER_D3D12        "Enable the Direct3D 12 render driver" ON "SD
 dep_option(SDL_RENDER_METAL        "Enable the Metal render driver" ON "SDL_RENDER;APPLE" OFF)
 dep_option(SDL_RENDER_GPU          "Enable the SDL_GPU render driver" ON "SDL_RENDER;SDL_GPU" OFF)
 dep_option(SDL_VIVANTE             "Use Vivante EGL video driver" ON "${UNIX_SYS};SDL_CPU_ARM32" OFF)
-dep_option(SDL_VULKAN              "Enable Vulkan support" ON "SDL_VIDEO;ANDROID OR APPLE OR LINUX OR FREEBSD OR WINDOWS" OFF)
+dep_option(SDL_VULKAN              "Enable Vulkan support" ON "SDL_VIDEO;ANDROID OR APPLE OR LINUX OR FREEBSD OR OPENBSD OR WINDOWS" OFF)
 dep_option(SDL_RENDER_VULKAN       "Enable the Vulkan render driver" ON "SDL_RENDER;SDL_VULKAN" OFF)
 dep_option(SDL_METAL               "Enable Metal support" ON "APPLE" OFF)
 set_option(SDL_OPENVR              "Use OpenVR video driver" OFF)
@@ -393,7 +393,7 @@ cmake_dependent_option(SDL_SHARED "Build a shared version of the library" ${SDL_
 cmake_dependent_option(SDL_STATIC "Build a static version of the library" ${SDL_STATIC_DEFAULT} ${SDL_STATIC_AVAILABLE} OFF)
 option(SDL_TEST_LIBRARY   "Build the SDL3_test library" ON)
 
-dep_option(SDL_TESTS           "Build the test directory" OFF SDL_TEST_LIBRARY OFF)
+dep_option(SDL_TESTS           "Build the test directory" ${SDL3_MAINPROJECT} SDL_TEST_LIBRARY OFF)
 dep_option(SDL_INSTALL_TESTS   "Install test-cases" OFF "SDL_INSTALL;NOT SDL_FRAMEWORK" OFF)
 dep_option(SDL_TESTS_LINK_SHARED "link tests to shared SDL library" "${SDL_SHARED}" "SDL_SHARED;SDL_STATIC" "${SDL_SHARED}")
 set(SDL_TESTS_TIMEOUT_MULTIPLIER "1" CACHE STRING "Timeout multiplier to account for really slow machines")
@@ -1161,6 +1161,8 @@ if(SDL_LIBC)
     check_symbol_exists(fdatasync "unistd.h" HAVE_FDATASYNC)
     check_symbol_exists(gethostname "unistd.h" HAVE_GETHOSTNAME)
     check_symbol_exists(getpagesize "unistd.h" HAVE_GETPAGESIZE)
+    check_symbol_exists(getresgid "unistd.h" HAVE_GETRESGID)
+    check_symbol_exists(getresuid "unistd.h" HAVE_GETRESUID)
     check_symbol_exists(sigaction "signal.h" HAVE_SIGACTION)
     check_symbol_exists(sigtimedwait "signal.h" HAVE_SIGTIMEDWAIT)
     check_symbol_exists(setjmp "setjmp.h" HAVE_SETJMP)
@@ -4049,7 +4051,7 @@ sdl_compile_definitions(
 ##### Tests #####
 
 if(SDL_TEST_LIBRARY)
-  file(GLOB TEST_SOURCES "${SDL3_SOURCE_DIR}/src/test/*.c")
+  file(GLOB TEST_SOURCES "${SDL3_SOURCE_DIR}/src/test/*.c" "${SDL3_SOURCE_DIR}/src/test/*.h")
   target_sources(SDL3_test PRIVATE ${TEST_SOURCES})
   if(APPLE)
     set_target_properties(SDL3_test PROPERTIES

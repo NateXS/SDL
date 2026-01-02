@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -33,6 +33,7 @@
 #include "hidapi/SDL_hidapi_nintendo.h"
 #include "hidapi/SDL_hidapi_sinput.h"
 #include "../events/SDL_events_c.h"
+#include "../SDL_hints_c.h"
 
 #ifdef SDL_PLATFORM_WIN32
 #include "../core/windows/SDL_windows.h"
@@ -376,6 +377,8 @@ static void RecenterGamepad(SDL_Gamepad *gamepad)
 static const char *SDL_UpdateGamepadNameForID(SDL_JoystickID instance_id)
 {
     const char *current_name = NULL;
+
+    SDL_AssertJoysticksLocked();
 
     GamepadMapping_t *mapping = SDL_PrivateGetGamepadMapping(instance_id, true);
     if (mapping) {
@@ -1255,6 +1258,10 @@ static GamepadMapping_t *SDL_CreateMappingForHIDAPIGamepad(SDL_GUID guid)
             if (guid.data[15] >= SDL_FLYDIGI_VADER2) {
                 // Vader series of controllers have C/Z buttons
                 SDL_strlcat(mapping_string, "misc2:b15,misc3:b16,", sizeof(mapping_string));
+                if (guid.data[15] == SDL_FLYDIGI_VADER5_PRO) {
+                    // Vader 5 has additional shoulder macro buttons and a circle button
+                    SDL_strlcat(mapping_string, "misc4:b17,misc5:b18,misc6:b19", sizeof(mapping_string));
+                }
             } else if (guid.data[15] == SDL_FLYDIGI_APEX5) {
                 // Apex 5 has additional shoulder macro buttons
                 SDL_strlcat(mapping_string, "misc2:b15,misc3:b16,", sizeof(mapping_string));
@@ -1894,6 +1901,8 @@ static void SDL_UpdateGamepadFaceStyle(SDL_Gamepad *gamepad)
 
 static void SDL_FixupHIDAPIMapping(SDL_Gamepad *gamepad)
 {
+    SDL_AssertJoysticksLocked();
+
     // Check to see if we need fixup
     bool need_fixup = false;
     for (int i = 0; i < gamepad->num_bindings; ++i) {
@@ -2612,7 +2621,11 @@ static int SDL_PrivateAddGamepadMapping(const char *mappingString, SDL_GamepadMa
                 }
 
             } else {
-                value = SDL_GetHintBoolean(hint, default_value);
+                const char *hint_value = SDL_GetHint(hint);
+                if (!hint_value) {
+                    hint_value = SDL_getenv_unsafe(hint);
+                }
+                value = SDL_GetStringBoolean(hint_value, default_value);
                 if (negate) {
                     value = !value;
                 }
@@ -3231,9 +3244,10 @@ bool SDL_ShouldIgnoreGamepad(Uint16 vendor_id, Uint16 product_id, Uint16 version
         }
     }
 
+    const char *hint = SDL_getenv_unsafe("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD");
+    bool allow_steam_virtual_gamepad = SDL_GetStringBoolean(hint, false);
 #ifdef SDL_PLATFORM_WIN32
-    if (SDL_GetHintBoolean("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD", false) &&
-        WIN_IsWine()) {
+    if (allow_steam_virtual_gamepad && WIN_IsWine()) {
         // We are launched by Steam and running under Proton or Wine
         // We can't tell whether this controller is a Steam Virtual Gamepad,
         // so assume that is doing the appropriate filtering of controllers
@@ -3243,7 +3257,7 @@ bool SDL_ShouldIgnoreGamepad(Uint16 vendor_id, Uint16 product_id, Uint16 version
 #endif // SDL_PLATFORM_WIN32
 
     if (SDL_IsJoystickSteamVirtualGamepad(vendor_id, product_id, version)) {
-        return !SDL_GetHintBoolean("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD", false);
+        return !allow_steam_virtual_gamepad;
     }
 
     if (SDL_allowed_gamepads.num_included_entries > 0) {

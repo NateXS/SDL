@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -277,7 +277,7 @@ extern void Wayland_DisplayInitTabletManager(SDL_VideoData *display);
 extern void Wayland_DisplayInitDataDeviceManager(SDL_VideoData *display);
 extern void Wayland_DisplayInitPrimarySelectionDeviceManager(SDL_VideoData *display);
 
-extern void Wayland_DisplayCreateTextInputManager(SDL_VideoData *d, uint32_t id);
+extern void Wayland_DisplayInitTextInputManager(SDL_VideoData *d, uint32_t id);
 
 extern void Wayland_DisplayCreateSeat(SDL_VideoData *display, struct wl_seat *wl_seat, Uint32 id);
 extern void Wayland_SeatDestroy(SDL_WaylandSeat *seat, bool shutting_down);
