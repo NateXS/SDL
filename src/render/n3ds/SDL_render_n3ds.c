@@ -247,7 +247,7 @@ static bool N3DS_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL
             return SDL_OutOfMemory();
         }
 
-        Mtx_Ortho(&N3DS_texture->renderProjMtx, 0.0, N3DS_texture->texture.width, N3DS_texture->texture.height, 0.0, -1.0, 1.0, true);
+        Mtx_Ortho(&N3DS_texture->renderProjMtx, 0.0, texture->w, texture->h, 0.0, -1.0, 1.0, true);
 
         C3D_FrameSplit(0);
         C3D_RenderTargetClear(N3DS_texture->renderTarget, C3D_CLEAR_ALL, __builtin_bswap32(0), 0);
