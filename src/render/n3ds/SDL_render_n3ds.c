@@ -26,6 +26,7 @@
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_video.h>
+#include "video/n3ds/SDL_n3dsvideo.h"
 
 #include <3ds.h>
 #include <citro3d.h>
@@ -1043,7 +1044,6 @@ bool N3DS_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Propert
     N3DS_RenderData *data;
     int width, height, pixelFormat;
     C3D_AttrInfo *attrInfo;
-    bool windowIsBottom;
 
     SDL_SetupRendererColorspace(renderer, create_props);
 
@@ -1103,15 +1103,12 @@ bool N3DS_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Propert
     SDL_GetWindowSizeInPixels(window, &width, &height);
     pixelFormat = PixelFormatToN3DSGPU(SDL_GetWindowPixelFormat(window));
 
-    /* FIXME: We might need a more resilient way of detecting the window<->screen mapping in the future. */
-    windowIsBottom = (width == 320);
-
     data->renderTarget = C3D_RenderTargetCreate(height, width, pixelFormat, GPU_RB_DEPTH16);
     data->boundTarget = NULL;
 
     C3D_RenderTargetClear(data->renderTarget, C3D_CLEAR_ALL, 0, 0);
     C3D_RenderTargetSetOutput(data->renderTarget,
-                              windowIsBottom ? GFX_BOTTOM : GFX_TOP, GFX_LEFT,
+                              window->internal->windowIsBottom ? GFX_BOTTOM : GFX_TOP, GFX_LEFT,
                               GX_TRANSFER_IN_FORMAT(pixelFormat) | GX_TRANSFER_OUT_FORMAT(pixelFormat));
     Mtx_OrthoTilt(&data->renderProjMtx, 0.0, width, height, 0.0, -1.0, 1.0, true);
 

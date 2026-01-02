@@ -111,6 +111,8 @@ static SDL_VideoDevice *N3DS_CreateDevice(void)
     device->UpdateWindowFramebuffer = SDL_N3DS_UpdateWindowFramebuffer;
     device->DestroyWindowFramebuffer = SDL_N3DS_DestroyWindowFramebuffer;
 
+    device->GetWindowSizeInPixels = SDL_N3DS_GetWindowSizeInPixels;
+
     device->free = N3DS_DeleteDevice;
 
     device->device_caps = VIDEO_DEVICE_CAPS_FULLSCREEN_ONLY;
@@ -243,6 +245,7 @@ static bool N3DS_CreateWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_Pr
     }
     display_data = SDL_GetDisplayDriverDataForWindow(window);
     window_data->screen = display_data->screen;
+    window_data->windowIsBottom = (int)SDL_GetNumberProperty(create_props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, 0) == 320;
     window->internal = window_data;
     SDL_SetKeyboardFocus(window);
     return true;

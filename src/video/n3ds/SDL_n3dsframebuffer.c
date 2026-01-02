@@ -42,6 +42,15 @@ static int GetSourceOffset(int x, int y, int source_width);
 static void FlushN3DSBuffer(const void *buffer, u32 bufsize, gfxScreen_t screen);
 
 
+void SDL_N3DS_GetWindowSizeInPixels(SDL_VideoDevice *_this, SDL_Window *window, int *w, int *h)
+{
+    if(window->internal->windowIsBottom)
+        *w = GSP_SCREEN_HEIGHT_BOTTOM;
+    else
+        *w = GSP_SCREEN_HEIGHT_TOP;  
+    *h = GSP_SCREEN_WIDTH;
+}
+
 bool SDL_N3DS_CreateWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window, SDL_PixelFormat *format, void **pixels, int *pitch)
 {
     SDL_Surface *framebuffer;

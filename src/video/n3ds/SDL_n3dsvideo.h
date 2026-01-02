@@ -36,6 +36,7 @@ struct SDL_VideoData
 struct SDL_WindowData
 {
     gfxScreen_t screen; /**< Keeps track of which N3DS screen is targeted */
+    bool windowIsBottom; /**< Keeps track of whether video should be rendered to the bottom screen */
 };
 
 #endif // SDL_n3dsvideo_h_
